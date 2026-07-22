@@ -10,7 +10,7 @@ Using Python and Gurobi, this project formulates and solves linear and mixed-int
 
 This project is based on the fictional **Feeding Hope** initiative in the town of Starlight.
 
-Following the closure of a local factory, many families in the community experienced financial hardship, and some children began facing inadequate nutrition. The local school sought a data-driven way to provide nutritionally complete meals while operating under a limited food budget.
+Following the closure of a local factory, many families in the community experienced financial hardship, and some children began facing inadequate nutrition. The local school sought a data-driven way to provide nutritionally complete meals while operating under a limited budget.
 
 The project applies mathematical optimization to answer the following question:
 
@@ -48,9 +48,9 @@ A solution based only on cost minimization may satisfy all mathematical constrai
 
 ## Dataset
 
-The food dataset contains 30 available food items.
+The food dataset contains nutritional and cost information for a range of common food items.
 
-For each item, the dataset includes:
+For each food item, the dataset includes:
 
 - Food name
 - Serving description
@@ -66,7 +66,13 @@ For each item, the dataset includes:
 - Iron
 - Cost per serving
 
-The workbook also contains the minimum and maximum permitted daily intake for each nutrient.
+The Excel workbook is stored as:
+
+```text
+food_data.xlsx
+```
+
+It contains the nutrient requirements and the nutritional characteristics and costs of the available food items.
 
 ---
 
@@ -109,86 +115,119 @@ The original model also required that:
 
 ---
 
+## Project Workflow
+
+1. Load nutrient requirements and food data from Excel.
+2. Define food-serving decision variables.
+3. Minimize total daily food cost.
+4. Add minimum and maximum nutrient constraints.
+5. Add calorie and protein contribution constraints.
+6. Solve the initial daily optimization model.
+7. Evaluate the practicality of the initial result.
+8. Categorize foods and add food-group requirements.
+9. Solve the refined daily model.
+10. Extend the model to a seven-day planning horizon.
+11. Add binary food-selection and weekly variety constraints.
+12. Compare the costs and practicality of the resulting plans.
+
+---
+
 ## Mathematical Formulation
 
 ### Sets
 
-Let:
-
-- \(I\) represent the set of available food items.
-- \(N\) represent the set of nutrients.
+- `I`: set of available food items
+- `N`: set of nutrients
 
 ### Decision Variable
 
-\[
-x_i = \text{number of servings of food item } i
-\]
+```text
+x[i] = number of servings of food item i consumed per day
+```
 
 ### Parameters
 
-\[
-c_i = \text{cost per serving of food item } i
-\]
+```text
+c[i]   = cost per serving of food item i
 
-\[
-a_{ni} = \text{amount of nutrient } n \text{ in one serving of food } i
-\]
+a[n,i] = amount of nutrient n in one serving of food item i
 
-\[
-L_n = \text{minimum required daily intake of nutrient } n
-\]
+L[n]   = minimum required daily intake of nutrient n
 
-\[
-U_n = \text{maximum permitted daily intake of nutrient } n
-\]
+U[n]   = maximum permitted daily intake of nutrient n
+```
 
 ### Objective Function
 
-The objective is to minimize the total daily cost:
+The objective is to minimize the total daily food cost:
 
-\[
-\min \sum_{i \in I} c_i x_i
-\]
+```text
+Minimize:
+
+Σ c[i] × x[i]
+i ∈ I
+```
 
 ### Nutritional Constraints
 
-For every nutrient \(n\):
+For every nutrient `n`:
 
-\[
-L_n \leq \sum_{i \in I} a_{ni}x_i \leq U_n
-\]
+```text
+L[n] ≤ Σ a[n,i] × x[i] ≤ U[n]
+       i ∈ I
+```
+
+This ensures that the total daily intake of every nutrient remains between its required minimum and maximum levels.
 
 ### Calorie-Contribution Constraint
 
-For every food item \(i\):
+For every food item `i`:
 
-\[
-Calories_i x_i
-\leq
-0.30\sum_{j \in I} Calories_j x_j
-\]
+```text
+Calories[i] × x[i]
+≤ 0.30 × total daily calories
+```
+
+Equivalent form:
+
+```text
+Calories[i] × x[i]
+≤ 0.30 × Σ Calories[j] × x[j]
+         j ∈ I
+```
+
+This prevents one food item from supplying more than 30% of total daily calories.
 
 ### Protein-Contribution Constraint
 
-For every food item \(i\):
+For every food item `i`:
 
-\[
-Protein_i x_i
-\leq
-0.30\sum_{j \in I} Protein_j x_j
-\]
+```text
+Protein[i] × x[i]
+≤ 0.30 × total daily protein
+```
 
-### Non-Negativity
+Equivalent form:
 
-\[
-x_i \geq 0 \qquad \forall i \in I
-\]
+```text
+Protein[i] × x[i]
+≤ 0.30 × Σ Protein[j] × x[j]
+         j ∈ I
+```
+
+This prevents one food item from supplying more than 30% of total daily protein.
+
+### Non-Negativity Constraint
+
+```text
+x[i] ≥ 0 for every food item i
+```
 
 ---
 
 ## Part 1: Initial Daily Optimization
 
-The initial linear programming model minimized daily cost while satisfying:
+The initial linear programming model minimized daily food cost while satisfying:
 
 - All ten nutritional ranges
 - The 30% calorie-contribution restriction
@@ -214,15 +253,17 @@ The initial linear programming model minimized daily cost while satisfying:
 $2.43 per child
 ```
 
-The result satisfied the mathematical requirements at a very low cost. However, it relied heavily on selected grains, fruit, and dairy products and did not include a sufficiently balanced range of food groups.
+The result satisfied the mathematical requirements at a very low cost. However, it relied heavily on selected grains, fruits, and dairy products and did not include a sufficiently balanced range of food groups.
 
-For example, the plan contained more than four servings of oranges but no clear serving of common vegetables such as broccoli or carrots.
+For example, the plan contained more than four servings of oranges but did not include a clear serving of common vegetables such as broccoli or carrots.
+
+This showed that the mathematically cheapest solution was not necessarily the most practical or balanced solution.
 
 ---
 
 ## Part 2: Improving the Daily Meal Plan
 
-To make the recommendation more practical, the food items were classified into five categories:
+To make the recommendation more realistic, the food items were classified into five categories:
 
 - Vegetables
 - Protein
@@ -230,23 +271,25 @@ To make the recommendation more practical, the food items were classified into f
 - Grain/Pasta
 - Dairy
 
-The refined model required at least one serving from each category:
+The refined model required at least one serving from each food category.
 
-\[
-\sum_{i \in I_k} x_i \geq 1
-\qquad \forall k \in K
-\]
+### Food-Category Constraint
 
-where \(I_k\) is the set of food items belonging to category \(k\).
+For every required food category `k`:
+
+```text
+Σ x[i] ≥ 1
+i ∈ category k
+```
 
 ### Model Changes
 
 The updated model introduced two important changes:
 
 1. At least one serving from every food category was required.
-2. The original 30% calorie and protein contribution constraints were removed to provide greater flexibility when selecting a balanced combination of food groups.
+2. The original 30% calorie and protein contribution constraints were removed.
 
-Removing the 30% rule in this stage was a deliberate model refinement. The initial rule promoted balance at the individual-food level, but the updated category requirements provided a more direct way to enforce variety across vegetables, protein, fruit, grains, and dairy.
+Removing the 30% constraints gave the model more flexibility to select a lower-cost combination while the category requirements directly promoted balance across vegetables, protein, fruit, grains, and dairy.
 
 ### Refined Daily Meal Plan
 
@@ -268,7 +311,7 @@ Removing the 30% rule in this stage was a deliberate model refinement. The initi
 $2.55 per child
 ```
 
-The cost increased by only $0.12 compared with the initial solution, while the meal plan represented a broader range of food categories.
+The refined plan cost only `$0.12` more than the initial minimum-cost solution while representing a broader mix of food groups.
 
 This demonstrates an important optimization trade-off:
 
@@ -278,48 +321,97 @@ A small increase in cost can produce a meal plan that is more balanced and easie
 
 ---
 
-## Part 3: Seven-Day Meal Plan
+## Part 3: Seven-Day Optimization Model
 
 The model was extended from a one-day linear program to a seven-day mixed-integer optimization model.
 
-For each day \(d\) and food item \(i\):
+### Additional Sets
 
-\[
-s_{di} =
-\text{number of servings of food } i \text{ on day } d
-\]
+- `D`: seven days in the planning period
+- `K`: required food categories
 
-A binary variable was introduced:
+### Weekly Decision Variables
 
-\[
-y_{di} =
-\begin{cases}
-1, & \text{if food } i \text{ is used on day } d \\
-0, & \text{otherwise}
-\end{cases}
-\]
+```text
+s[d,i] = number of servings of food item i on day d
+```
 
-### Weekly Objective
+A binary selection variable was also introduced:
 
-\[
-\min
-\sum_{d=1}^{7}
-\sum_{i \in I}
-c_i s_{di}
-\]
+```text
+y[d,i] = 1 if food item i is selected on day d
+         0 otherwise
+```
 
-### Weekly Model Requirements
+### Weekly Objective Function
 
-The seven-day model:
+The objective is to minimize total food cost across all seven days:
 
-- Satisfies all minimum and maximum nutrient requirements each day.
-- Includes food from all five categories each day.
-- Uses binary variables to connect food selection with serving quantities.
-- Requires daily food selections to differ across consecutive days.
-- Limits each non-dairy food item to no more than four appearances per week.
-- Allows additional flexibility for dairy because the dataset contains only two dairy products.
+```text
+Minimize:
 
-The four-use weekly limit was selected so that one food could not dominate more than half of the week while still leaving the model enough flexibility to find a feasible solution.
+Σ Σ c[i] × s[d,i]
+d i
+```
+
+### Daily Nutritional Constraints
+
+For every day `d` and nutrient `n`:
+
+```text
+L[n] ≤ Σ a[n,i] × s[d,i] ≤ U[n]
+       i
+```
+
+Each individual day must satisfy all minimum and maximum nutritional requirements.
+
+### Food Selection Link
+
+The binary and continuous variables are connected using:
+
+```text
+s[d,i] ≤ M × y[d,i]
+```
+
+where `M` is a sufficiently large upper bound.
+
+When `y[d,i] = 0`, the food item cannot have a positive serving quantity on that day.
+
+### Daily Food-Category Constraints
+
+Each daily plan must include food from every required category:
+
+```text
+Σ s[d,i] ≥ 1
+i ∈ category k
+```
+
+This requirement applies to:
+
+- Vegetables
+- Protein
+- Fruit
+- Grain/Pasta
+- Dairy
+
+### Consecutive-Day Variety Constraint
+
+Binary variables were used to ensure that at least one selected food item differed between consecutive days.
+
+This prevented two adjacent days from containing exactly the same set of foods.
+
+### Weekly Frequency Constraint
+
+Each non-dairy food item was limited to appearing on no more than four days during the week:
+
+```text
+Σ y[d,i] ≤ 4
+d ∈ D
+```
+
+Dairy products were excluded from this restriction because the dataset contains limited dairy choices.
+
+The four-day limit was chosen to prevent one food from dominating most of the week while preserving sufficient flexibility for the model to remain feasible.
 
 ---
 
@@ -452,33 +544,43 @@ The four-use weekly limit was selected so that one food could not dominate more 
 | Day 7 | $2.84 |
 | **Total** | **$23.28** |
 
-The average cost is approximately:
+Average daily cost:
 
 ```text
-$3.33 per child per day
+$23.28 ÷ 7 ≈ $3.33 per child per day
 ```
 
 ---
 
 ## Key Findings
 
-- The initial minimum-cost meal plan cost only **$2.43 per child per day**.
+- The initial minimum-cost meal plan cost **$2.43 per child per day**.
 - Cost minimization alone produced a solution with limited food-group diversity.
-- Requiring all five food categories increased the daily cost to **$2.55**, an increase of only **$0.12**.
-- The seven-day model generated a more varied plan for **$23.28 per child per week**.
+- Requiring all five food categories increased the daily cost to **$2.55**.
+- Improving food-group balance increased cost by only **$0.12 per child per day**.
+- The seven-day model generated a more varied weekly plan for **$23.28 per child**.
 - Daily costs in the weekly plan ranged from **$2.56 to $4.35**.
-- Adding realism and variety increased cost, but the increase was relatively small compared with the improvement in meal balance.
-- Optimization is most useful when practical constraints are included alongside financial objectives.
+- The average cost of the weekly plan was approximately **$3.33 per child per day**.
+- Binary variables enabled the model to control food selection and weekly repetition.
+- Practical constraints improved the usefulness of the model but increased total cost.
+- Optimization is most effective when human-centered requirements are considered alongside cost.
 
 ---
 
 ## Practical Interpretation
 
-The optimized serving quantities include fractional values, which may appear difficult to implement for one child.
+The optimized results include fractional serving quantities, which may appear difficult to implement for one child.
 
-However, this model is intended for a school feeding program. When serving quantities are multiplied across hundreds or thousands of students, fractional per-child quantities become manageable bulk purchasing and preparation amounts.
+However, the model is intended for a school feeding program where meals are prepared for hundreds or thousands of students. Fractional per-child quantities can therefore be converted into manageable bulk purchasing and preparation amounts.
 
-For example, a recommendation of 0.10 servings per child becomes 50 full servings when meals are prepared for 500 children.
+For example:
+
+```text
+0.10 servings per child × 500 children
+= 50 full servings
+```
+
+This makes fractional solutions more practical at the school-program level.
 
 ---
 
@@ -498,78 +600,119 @@ It does not account for:
 
 ### Fractional Servings
 
-The optimization uses continuous decision variables, so some recommended serving quantities are fractional.
+The optimization uses continuous serving variables, so some recommended quantities are very small or fractional.
 
-Although this is manageable when cooking at scale, additional integer or portion-size constraints may be necessary for smaller programs.
+Although this is manageable when preparing food at scale, additional serving-size constraints may be required for smaller programs.
+
+### Large Quantities of Individual Foods
+
+Some optimized solutions include high quantities of particular foods, such as apples, bananas, oranges, bread, or milk.
+
+The plans meet the mathematical requirements but may not always reflect realistic eating behavior.
 
 ### Food Availability
 
-The model assumes that every food item is always available.
+The model assumes every food item is available throughout the planning period.
 
-It does not include:
+It does not account for:
 
 - Seasonal availability
 - Supplier capacity
 - Minimum purchase quantities
-- Food waste
-- Storage limits
-- Preparation capacity
+- Ingredient shortages
+- Storage limitations
+- Kitchen preparation capacity
+
+### Static Food Costs
+
+Food prices are treated as fixed and do not change across the week.
+
+### Food Waste
+
+The model does not include food spoilage, leftovers, package sizes, or waste-related costs.
+
+### Meal Structure
+
+The model optimizes total daily intake but does not divide food into breakfast, lunch, dinner, and snacks.
 
 ### Food Acceptability
 
-The model measures nutrition and cost but does not directly measure whether children would find the recommended combinations appealing.
-
-Several optimized quantities, such as multiple servings of one fruit or bread item, may require additional practical limits.
-
-### Static Prices
-
-Food costs are treated as fixed and do not change across the week.
+The model measures nutrient intake and cost but does not directly evaluate whether children would find the recommended combinations appealing.
 
 ---
 
 ## Recommendations
 
-### Incorporate Student Preferences and Allergies
+### Incorporate Preferences and Allergies
 
-Future versions should include information about student preferences, dietary restrictions, and allergies.
+Future versions should include student-level dietary information, including:
+
+- Food preferences
+- Allergies
+- Intolerances
+- Cultural requirements
+- Religious requirements
 
 Food-specific exclusion constraints could prevent unsuitable items from appearing in a student's plan.
 
-### Add Practical Portion Limits
+### Add Practical Serving Limits
 
-Minimum and maximum serving constraints could be introduced for individual foods:
+Minimum and maximum serving quantities could be added for individual foods:
 
-\[
-l_i y_{di}
-\leq
-s_{di}
-\leq
-u_i y_{di}
-\]
+```text
+minimum_serving[i] × y[d,i]
+≤ s[d,i]
+≤ maximum_serving[i] × y[d,i]
+```
 
-This would prevent very small or unusually large serving quantities.
+These constraints would prevent extremely small or unusually large serving quantities.
+
+### Add Meal-Level Planning
+
+The model could assign foods to:
+
+- Breakfast
+- Lunch
+- Dinner
+- Snacks
+
+This would help ensure that the daily combination forms recognizable meals.
 
 ### Scale the Model to the School Level
 
-The per-child recommendations can be multiplied by total student enrollment to generate:
+Per-child serving quantities can be multiplied by total enrollment to calculate:
 
 - Total purchasing quantities
 - Weekly procurement costs
-- Ingredient preparation requirements
+- Kitchen preparation requirements
 - Supplier orders
+- Staffing needs
 
 ### Include Seasonal Availability and Prices
 
-Time-dependent availability and cost parameters would make the weekly model more realistic.
+Time-dependent availability and cost parameters would improve the realism of the weekly model.
 
 ### Include Food-Waste Considerations
 
-Future models could minimize a weighted combination of:
+A future objective could minimize a weighted combination of:
 
-- Food cost
-- Food waste
-- Nutritional deviation
-- Meal repetition
+```text
+Food cost
++ food waste
++ nutritional deviation
++ meal repetition
+```
+
+### Add Multiple Objectives
+
+Instead of minimizing cost alone, the model could balance:
+
+- Cost
+- Variety
+- Student satisfaction
+- Waste
+- Preparation complexity
+- Environmental impact
 
 ---
 
@@ -579,7 +722,7 @@ Future models could minimize a weighted combination of:
 school-meal-plan-optimization/
 ├── README.md
 ├── Nutrition_Optimization.ipynb
-└── Food_Nutrition_Data.xlsx
+└── food_data.xlsx
 ```
 
 ---
@@ -589,8 +732,10 @@ school-meal-plan-optimization/
 | File | Description |
 |---|---|
 | `Nutrition_Optimization.ipynb` | Complete Python and Gurobi workflow, including model formulation, daily optimization, model refinement, and seven-day meal planning |
-| `Food_Nutrition_Data.xlsx` | Nutritional requirements, food attributes, serving descriptions, and cost-per-serving data |
-| `README.md` | Project overview, mathematical formulation, results, limitations, and recommendations |
+| `food_data.xlsx` | Nutritional requirements, food attributes, serving descriptions, and cost-per-serving data |
+| `README.md` | Project overview, formulation, optimization results, limitations, and recommendations |
+
+The original project-option document and screenshots are not included because they contain assignment instructions rather than the team's analytical work.
 
 ---
 
@@ -605,47 +750,49 @@ school-meal-plan-optimization/
 - A valid Gurobi license
 - openpyxl
 
-### Install Python Packages
+### Install Required Python Packages
 
 ```bash
 pip install pandas openpyxl gurobipy jupyter
 ```
 
-### Run the Notebook
-
-1. Clone this repository:
+### Clone the Repository
 
 ```bash
 git clone https://github.com/your-username/school-meal-plan-optimization.git
 ```
 
-2. Open the project directory:
+### Open the Project Folder
 
 ```bash
 cd school-meal-plan-optimization
 ```
 
-3. Start Jupyter Notebook:
+### Start Jupyter Notebook
 
 ```bash
 jupyter notebook
 ```
 
-4. Open:
+Open:
 
 ```text
 Nutrition_Optimization.ipynb
 ```
 
-5. Ensure `Food_Nutrition_Data.xlsx` is located in the same directory as the notebook.
+Ensure that the Excel workbook is located in the same folder as the notebook:
 
-6. Update the workbook filename inside the notebook if necessary:
-
-```python
-file_path = "Food_Nutrition_Data.xlsx"
+```text
+food_data.xlsx
 ```
 
-7. Run all cells in order.
+The Notebook reads the dataset using:
+
+```python
+file_path = "food_data.xlsx"
+```
+
+Run all Notebook cells in order.
 
 ---
 
@@ -662,7 +809,9 @@ file_path = "Food_Nutrition_Data.xlsx"
 - Decision Modeling
 - Cost Optimization
 - Nutrition Analytics
-- Scenario Refinement
+- Weekly Planning
+- Binary Decision Variables
+- Model Refinement
 - Human-Centered Analytics
 - Analytics for Social Impact
 
@@ -679,6 +828,6 @@ file_path = "Food_Nutrition_Data.xlsx"
 
 ## AI Usage
 
-Generative AI was used only to assist with selected Gurobi coding questions and grammatical refinement.
+Generative AI was used only to assist with selected Gurobi coding questions and grammatical corrections.
 
-The mathematical formulations, objective functions, constraints, model design, analysis, and recommendations were developed by the project team.
+The mathematical formulations, constraints, objective functions, model design, analysis, and recommendations were independently developed by the project team.
